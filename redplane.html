@@ -28,7 +28,199 @@ button { font-size:16px; padding:8px;}
 </div>
 
 <script>
-/* SENİN OYUN KODUN AYNI ŞEKİLDE */
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+function resize(){
+ canvas.width = window.innerWidth;
+ canvas.height = window.innerHeight;
+}
+resize();
+window.addEventListener("resize", resize);
+
+// 🔊 SES
+let audioCtx;
+function initSound(){
+ if(!audioCtx){
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+ }
+}
+
+function playShoot(){
+ initSound();
+ let osc = audioCtx.createOscillator();
+ let gain = audioCtx.createGain();
+ osc.frequency.value = 700;
+ gain.gain.value = 0.2;
+ osc.connect(gain);
+ gain.connect(audioCtx.destination);
+ osc.start();
+ osc.stop(audioCtx.currentTime+0.1);
+}
+
+function playExplosion(){
+ initSound();
+ let osc = audioCtx.createOscillator();
+ let gain = audioCtx.createGain();
+ osc.frequency.value = 100;
+ gain.gain.value = 0.5;
+ osc.connect(gain);
+ gain.connect(audioCtx.destination);
+ osc.start();
+ osc.stop(audioCtx.currentTime+0.2);
+}
+
+// GAME
+let plane={x:window.innerWidth/2,y:window.innerHeight-120};
+let bullets=[], enemies=[], clouds=[], scoreTexts=[];
+let score=0, highScore=localStorage.getItem("highScore")||0;
+let running=false;
+let gameOver=false;
+let keys={};
+
+// RESTART
+function restartGame(){
+ bullets=[]; enemies=[]; clouds=[]; scoreTexts=[];
+ score=0;
+ plane.x=canvas.width/2;
+ running=true;
+ gameOver=false;
+}
+
+// SPAWN
+setInterval(()=>{
+ if(running){
+  let types=[
+   {emoji:"🎈",p:10},
+   {emoji:"🚗",p:5},
+   {emoji:"🛢️",p:5},
+   {emoji:"🚀",p:15},
+   {emoji:"🛸",p:15},
+   {emoji:"✈️",p:10}
+  ];
+  let t=types[Math.random()*types.length|0];
+  enemies.push({x:Math.random()*canvas.width,y:-40,type:t.emoji,p:t.p});
+ }
+},1000);
+
+setInterval(()=>{
+ if(running) clouds.push({x:Math.random()*canvas.width,y:-40});
+},1500);
+
+// HIT
+function hit(a,b){
+ return Math.abs(a.x-b.x)<40 && Math.abs(a.y-b.y)<40;
+}
+
+// UPDATE
+function update(){
+ if(!running) return;
+
+ if(keys["ArrowLeft"]) plane.x-=8;
+ if(keys["ArrowRight"]) plane.x+=8;
+
+ plane.x=Math.max(40,Math.min(canvas.width-40,plane.x));
+
+ bullets.forEach(b=>b.y-=10);
+ enemies.forEach(e=>e.y+=3);
+ clouds.forEach(c=>c.y+=1);
+
+ enemies.forEach((e,ei)=>{
+  bullets.forEach((b,bi)=>{
+   if(hit(b,e)){
+    let text = e.type==="🛸" ? "+15 UFO 👽" : "+"+e.p+" 💰";
+    score+=e.p;
+    scoreTexts.push({x:e.x,y:e.y,text:text,life:30});
+    enemies.splice(ei,1);
+    bullets.splice(bi,1);
+    playExplosion();
+   }
+  });
+
+  if(hit(plane,e)){
+    running=false;
+    gameOver=true;
+  }
+ });
+
+ if(score>highScore){
+  highScore=score;
+  localStorage.setItem("highScore",highScore);
+ }
+
+ document.getElementById("scoreboard").innerText=
+ "Skor: "+score+" | Rekor: "+highScore;
+}
+
+// DRAW
+function draw(){
+ ctx.clearRect(0,0,canvas.width,canvas.height);
+
+ ctx.font="30px Arial";
+
+ clouds.forEach(c=>ctx.fillText("☁️",c.x,c.y));
+
+ ctx.save();
+ ctx.translate(plane.x, plane.y);
+ ctx.rotate(-Math.PI / 2);
+ ctx.fillText("🛩️", -15, 10);
+ ctx.restore();
+
+ bullets.forEach(b=>ctx.fillText("💥",b.x,b.y));
+ enemies.forEach(e=>ctx.fillText(e.type,e.x,e.y));
+
+ scoreTexts.forEach((t,i)=>{
+  ctx.fillStyle="gold";
+  ctx.fillText(t.text,t.x,t.y);
+  t.y--;
+  t.life--;
+  if(t.life<=0) scoreTexts.splice(i,1);
+ });
+
+ if(gameOver){
+  ctx.fillStyle="red";
+  ctx.font="50px Arial";
+  ctx.fillText("GAME OVER", canvas.width/2-150, canvas.height/2);
+ }
+}
+
+// LOOP
+document.addEventListener("keydown",e=>{
+ keys[e.key]=true;
+
+ if(e.key===" "){
+  if(gameOver){
+   restartGame();
+  } else if(running){
+   bullets.push({x:plane.x,y:plane.y});
+   playShoot();
+  }
+ }
+});
+
+document.addEventListener("keyup",e=>keys[e.key]=false);
+
+canvas.addEventListener("touchstart",()=>{
+ initSound();
+
+ if(gameOver){
+  restartGame();
+ } else if(running){
+  bullets.push({x:plane.x,y:plane.y});
+  playShoot();
+ }
+});
+
+canvas.addEventListener("touchmove",e=>{
+ let x=e.touches[0].clientX;
+ x=Math.max(40,Math.min(canvas.width-40,x));
+ plane.x=x;
+});
+
+setInterval(()=>{update();draw();},1000/60);
+
+function startGame(){ running=true; initSound(); }
+function pauseGame(){ running=false; }
 </script>
 
 </body>
