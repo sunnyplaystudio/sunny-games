@@ -1,0 +1,13 @@
+{
+  "background_color": "#164c48",
+  "dir": "ltr",
+  "display": "standalone",
+  "name": "Red Plane",
+  "orientation": "any",
+  "scope": "/",
+  "short_name": "RedPlane"
+  "start_url": "/",
+  "theme_color": "#344d66",
+  "id": "red-plane-game",
+  "description": "Fast reflex airplane game. Dodge UFOs and survive as long as possible!"
+}
